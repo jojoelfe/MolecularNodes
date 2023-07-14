@@ -26,10 +26,12 @@ bpy.types.Scene.mol_import_star_file_name = bpy.props.StringProperty(
 
 
 def load_star_file(
+    operator,
     file_path, 
     obj_name = 'NewStarInstances', 
     node_tree = True,
-    world_scale =  0.01 
+    world_scale =  0.01,
+    load_micrograph = True 
     ):
     import starfile
     from eulerangles import ConversionMeta, convert_eulers
@@ -74,6 +76,8 @@ def load_star_file(
         xyz = df[['cisTEMOriginalXPosition', 'cisTEMOriginalYPosition', 'cisTEMZFromDefocus']].to_numpy()
         euler_angles = df[['cisTEMAnglePhi', 'cisTEMAngleTheta', 'cisTEMAnglePsi']].to_numpy()
         image_id = df['cisTEMOriginalImageFilename'].astype('category').cat.codes.to_numpy()
+    else: 
+        return
 
     # coerce starfile Euler angles to Blender convention
     
@@ -115,6 +119,19 @@ def load_star_file(
     if node_tree:
         nodes.create_starting_nodes_starfile(obj)
     
+    if load_micrograph:
+        if star_type == 'relion':
+            micrograph_paths = df['rlnMicrographName'].unique()
+        elif star_type == 'cistem':
+            micrograph_paths = df['cisTEMOriginalImageFilename'].unique()
+        else:
+            return
+        if len(micrograph_paths) > 1:
+            operator.report({'WARNING'},message="Multiple micrographs found, only loading first one")
+        micrograph = micrograph_paths[0]
+        operator.report({'INFO'},message="Loading micrograph: " + micrograph)
+            
+    
     return obj
 
 
@@ -148,8 +165,10 @@ class MOL_OT_Import_Star_File(bpy.types.Operator):
 
     def execute(self, context):
         load_star_file(
+            operator = self,
             file_path = bpy.context.scene.mol_import_star_file_path, 
             obj_name = bpy.context.scene.mol_import_star_file_name, 
-            node_tree = True
+            node_tree = True,
+            
         )
         return {"FINISHED"}
