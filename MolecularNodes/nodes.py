@@ -45,6 +45,24 @@ def mol_base_material():
     
     return bpy.data.materials[mat_name]
 
+def mol_micrograph_material():
+    """Append MOL_micrograph_material to the .blend file and return that material."""
+
+    mat_name = 'MOL_micrograph_material'
+    mat = bpy.data.materials.get(mat_name)
+
+    bpy.ops.wm.append(
+        directory=os.path.join(
+            pkg.ADDON_DIR, 'assets', 'node_append_file.blend' + r'/Material'
+        ), 
+        filename=mat_name, 
+        link=False,
+    )
+
+    return bpy.data.materials[mat_name]
+
+
+
 def gn_new_group_empty(name = "Geometry Nodes"):
     group = bpy.data.node_groups.get(name)
     # if the group already exists, return it and don't create a new one
@@ -120,8 +138,9 @@ def create_starting_nodes_starfile(obj):
     node_input = node_mod.node_group.nodes[bpy.app.translations.pgettext_data("Group Input",)]
     node_input.location = [0, 0]
     node_output = node_mod.node_group.nodes[bpy.app.translations.pgettext_data("Group Output",)]
-    node_output.location = [900, 0]
-
+    node_output.location = [1200, 0]
+    node_join = node_mod.node_group.nodes.new("GeometryNodeJoinGeometry")
+    node_join.location = [900, 0]
     node_delete = node_group.nodes.new("GeometryNodeDeleteGeometry")
     node_delete.location = [500, 0]
 
@@ -177,7 +196,8 @@ def create_starting_nodes_starfile(obj):
 
     link(node_input.outputs[0], node_delete.inputs[0])
     link(node_delete.outputs[0], node_geom_to_instance.inputs[0])
-    link(node_geom_to_instance.outputs[0], node_output.inputs[0])
+    link(node_geom_to_instance.outputs[0], node_join.inputs[0])
+    link(node_join.outputs[0], node_output.inputs[0])
 
     link(node_input.outputs[1], node_object_info.inputs[0])
     link(node_input.outputs[2], node_subtract.inputs[0])
@@ -199,6 +219,7 @@ def create_starting_nodes_starfile(obj):
 
     # Need to manually set Image input to 1, otherwise it will be 0 (even though default is 1)
     node_mod['Input_3'] = 1
+    return node_group
 
 def create_starting_nodes_density(obj, threshold = 0.8):
     # ensure there is a geometry nodes modifier called 'MolecularNodes' that is created and applied to the object

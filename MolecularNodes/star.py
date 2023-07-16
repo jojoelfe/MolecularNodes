@@ -26,7 +26,6 @@ bpy.types.Scene.mol_import_star_file_name = bpy.props.StringProperty(
 
 
 def load_star_file(
-    operator,
     file_path, 
     obj_name = 'NewStarInstances', 
     node_tree = True,
@@ -117,21 +116,54 @@ def load_star_file(
             obj[col + '_categories'] = list(df[col].astype('category').cat.categories)
     
     if node_tree:
-        nodes.create_starting_nodes_starfile(obj)
+        node_group = nodes.create_starting_nodes_starfile(obj)
     
-    if load_micrograph:
-        if star_type == 'relion':
-            micrograph_paths = df['rlnMicrographName'].unique()
-        elif star_type == 'cistem':
-            micrograph_paths = df['cisTEMOriginalImageFilename'].unique()
-        else:
-            return
-        if len(micrograph_paths) > 1:
-            operator.report({'WARNING'},message="Multiple micrographs found, only loading first one")
-        micrograph = micrograph_paths[0]
-        operator.report({'INFO'},message="Loading micrograph: " + micrograph)
+        if load_micrograph:
+            import mrcfile
+            if star_type == 'relion':
+                micrograph_paths = df['rlnMicrographName'].unique()
+            elif star_type == 'cistem':
+                micrograph_paths = df['cisTEMOriginalImageFilename'].unique()
+            else:
+                return
+            if len(micrograph_paths) > 1:
+                print("Multiple micrographs found, only loading first one")
+            micrograph = micrograph_paths[0]
+            with mrcfile.open(micrograph) as mrc:
+                micrograph_data = mrc.data.copy()
+                pixel_size = mrc.voxel_size.x
+            # For 3D data sum over the z axis. Probalby would be nicer to load the data as a volume
+            if micrograph_data.ndim == 3:
+                micrograph_data = np.sum(micrograph_data, axis=0)
+            # Normalize values to 0-1 range, might need to be adjusted
+            micrograph_data -= np.median(micrograph_data)
+            micrograph_data /= np.std(micrograph_data)
+            micrograph_data /= 3.0
+            micrograph_data = np.clip(micrograph_data, -1.0, 1.0)
+            micrograph_data /= 2.0
+            micrograph_data += 0.5
+            # Create a new image datablock
+            image = bpy.data.images.new(micrograph, width=micrograph_data.shape[1], height=micrograph_data.shape[0],is_data=True,float_buffer=True)
+            # Copy the data into the image datablock
+            image.pixels = np.repeat(micrograph_data.flatten(), 4)
+            # Create a new material, copying it over
+
+            mat = nodes.mol_micrograph_material()
+            mat.name = micrograph
+            mat.node_tree.nodes['Image Texture'].image = image
+
+            # Setup the size of the micrograph plane
+            micrograph_plane_node = nodes.add_custom_node_group_to_node(node_group, 'MOL_micrograph_plane')
             
-    
+           
+            node_group.inputs.new('NodeSocketFloat', "Pixel Size")
+            node_group.inputs['Pixel Size'].default_value = pixel_size
+
+           
+          
+            link = node_group.links.new
+            join_node = node_group.nodes['Join Geometry']
+            link(micrograph_plane_node.outputs[0], join_node.inputs[0])
     return obj
 
 
@@ -165,7 +197,6 @@ class MOL_OT_Import_Star_File(bpy.types.Operator):
 
     def execute(self, context):
         load_star_file(
-            operator = self,
             file_path = bpy.context.scene.mol_import_star_file_path, 
             obj_name = bpy.context.scene.mol_import_star_file_name, 
             node_tree = True,
