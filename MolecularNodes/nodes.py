@@ -171,7 +171,7 @@ def add_micrograph_to_starfile_nodes(node_mod, node_group, mat, image, pixel_siz
     link(micrograph_plane_node.outputs[0], join_node.inputs[0])
     link(input_node.outputs[4], micrograph_plane_node.inputs[3])
     link(input_node.outputs[5], micrograph_plane_node.inputs[4])
-    #node_mod['Input_5'] = float(pixel_size)
+    node_mod['Input_5'] = float(pixel_size)
 
 
 def create_starting_nodes_density(obj, threshold = 0.8):
