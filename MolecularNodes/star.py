@@ -116,7 +116,7 @@ def load_star_file(
             obj[col + '_categories'] = list(df[col].astype('category').cat.categories)
     
     if node_tree:
-        node_group = nodes.create_starting_nodes_starfile(obj)
+        node_mod, node_group = nodes.create_starting_nodes_starfile(obj)
     
         if load_micrograph:
             import mrcfile
@@ -132,6 +132,7 @@ def load_star_file(
             with mrcfile.open(micrograph) as mrc:
                 micrograph_data = mrc.data.copy()
                 pixel_size = mrc.voxel_size.x
+                print("Micrograph pixel size: ", pixel_size)
             # For 3D data sum over the z axis. Probalby would be nicer to load the data as a volume
             if micrograph_data.ndim == 3:
                 micrograph_data = np.sum(micrograph_data, axis=0)
@@ -153,17 +154,7 @@ def load_star_file(
             mat.node_tree.nodes['Image Texture'].image = image
 
             # Setup the size of the micrograph plane
-            micrograph_plane_node = nodes.add_custom_node_group_to_node(node_group, 'MOL_micrograph_plane')
-            
-           
-            node_group.inputs.new('NodeSocketFloat', "Pixel Size")
-            node_group.inputs['Pixel Size'].default_value = pixel_size
-
-           
-          
-            link = node_group.links.new
-            join_node = node_group.nodes['Join Geometry']
-            link(micrograph_plane_node.outputs[0], join_node.inputs[0])
+            nodes.add_micrograph_to_starfile_nodes(node_mod, node_group, mat, image, pixel_size, world_scale)
     return obj
 
 

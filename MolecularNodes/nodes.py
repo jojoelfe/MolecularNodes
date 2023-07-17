@@ -120,7 +120,7 @@ def create_starting_nodes_starfile(obj):
     node_group = bpy.data.node_groups.get(node_name)
     if node_group:
         node_mod.node_group = node_group
-        return node_group
+        return (node_mod, node_group)
     
     
     # create a new GN node group, specific to this particular molecule
@@ -146,11 +146,33 @@ def create_starting_nodes_starfile(obj):
     link = node_group.links.new
 
     link(node_input.outputs[0], node_starfile_instances.inputs[0])
+    link(node_input.outputs[1], node_starfile_instances.inputs[1])
+    link(node_input.outputs[2], node_starfile_instances.inputs[2])
+    link(node_input.outputs[3], node_starfile_instances.inputs[3])
     link(node_starfile_instances.outputs[0], node_join.inputs[0])
     link(node_join.outputs[0], node_output.inputs[0])
     # Need to manually set Image input to 1, otherwise it will be 0 (even though default is 1)
     node_mod['Input_3'] = 1
-    return node_group
+    return (node_mod, node_group)
+
+def add_micrograph_to_starfile_nodes(node_mod, node_group, mat, image, pixel_size, world_scale = 0.01):
+    micrograph_plane_node = add_custom_node_group_to_node(node_group, 'MOL_micrograph_plane')
+    #micrograph_plane_node[]
+           
+    node_group.inputs.new('NodeSocketFloat', "Pixel Size")
+    node_group.inputs.new('NodeSocketFloat', "Z")
+    micrograph_plane_node.inputs[0].default_value = world_scale
+    micrograph_plane_node.inputs[1].default_value = image
+    micrograph_plane_node.inputs[2].default_value = mat
+    link = node_group.links.new
+    input_node = node_group.nodes[bpy.app.translations.pgettext_data("Group Input",)]
+    join_node = node_group.nodes[bpy.app.translations.pgettext_data("Join Geometry",)]
+
+    link(micrograph_plane_node.outputs[0], join_node.inputs[0])
+    link(input_node.outputs[4], micrograph_plane_node.inputs[3])
+    link(input_node.outputs[5], micrograph_plane_node.inputs[4])
+    #node_mod['Input_5'] = float(pixel_size)
+
 
 def create_starting_nodes_density(obj, threshold = 0.8):
     # ensure there is a geometry nodes modifier called 'MolecularNodes' that is created and applied to the object
