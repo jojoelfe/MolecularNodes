@@ -117,15 +117,13 @@ def create_starting_nodes_starfile(obj):
     node_name = f"MOL_starfile_{obj.name}"
     
     # if node tree already exists by this name, set it and return it
-    node_group = bpy.data.node_groups.get(node_name)
-    if node_group:
-        node_mod.node_group = node_group
-        return (node_mod, node_group)
+    #node_group = bpy.data.node_groups.get(node_name)
+    #if node_group:
+    #    node_mod.node_group = node_group
+    #    return (node_mod, node_group)
     
     
-    # create a new GN node group, specific to this particular molecule
-    node_group = gn_new_group_empty(node_name)
-    
+   
     # create a new GN node group, specific to this particular molecule
     node_group = gn_new_group_empty(node_name)
     node_mod.node_group = node_group
@@ -134,6 +132,7 @@ def create_starting_nodes_starfile(obj):
     node_group.inputs["Image"].default_value = 1
     node_group.inputs["Image"].min_value = 1
     node_group.inputs.new("NodeSocketBool", "Simplify")
+    node_group.inputs.new("NodeSocketBool", "Show matches")
     # move the input and output nodes for the group
     node_input = node_mod.node_group.nodes[bpy.app.translations.pgettext_data("Group Input",)]
     node_input.location = [0, 0]
@@ -142,23 +141,30 @@ def create_starting_nodes_starfile(obj):
     node_join = node_mod.node_group.nodes.new("GeometryNodeJoinGeometry")
     node_join.location = [900, 0]
     node_starfile_instances = add_custom_node_group_to_node(node_group, 'MOL_starfile_instances', [600, 0])
-
+    node_switch_matches = node_group.nodes.new("GeometryNodeSwitch")
+    node_switch_matches.location = [300, 0]
+    node_switch_matches.input_type = 'GEOMETRY'
     link = node_group.links.new
 
     link(node_input.outputs[0], node_starfile_instances.inputs[0])
     link(node_input.outputs[1], node_starfile_instances.inputs[1])
     link(node_input.outputs[2], node_starfile_instances.inputs[2])
     link(node_input.outputs[3], node_starfile_instances.inputs[3])
-    link(node_starfile_instances.outputs[0], node_join.inputs[0])
+    link(node_input.outputs[4], node_switch_matches.inputs[1])
+    link(node_starfile_instances.outputs[0], node_switch_matches.inputs[15])
+    link(node_switch_matches.outputs[6], node_join.inputs[0])
     link(node_join.outputs[0], node_output.inputs[0])
     # Need to manually set Image input to 1, otherwise it will be 0 (even though default is 1)
     node_mod['Input_3'] = 1
+    node_mod['Input_5'] = True
     return (node_mod, node_group)
 
 def add_micrograph_to_starfile_nodes(node_mod, node_group, mat, image, pixel_size, world_scale = 0.01):
     micrograph_plane_node = add_custom_node_group_to_node(node_group, 'MOL_micrograph_plane')
     #micrograph_plane_node[]
-           
+    node_switch_micrograph = node_group.nodes.new("GeometryNodeSwitch")
+    node_switch_micrograph.location = [300, -200]
+    node_group.inputs.new('NodeSocketBool', "Show Micrograph")
     node_group.inputs.new('NodeSocketFloat', "Pixel Size")
     node_group.inputs.new('NodeSocketFloat', "Z")
     micrograph_plane_node.inputs[0].default_value = world_scale
@@ -168,10 +174,13 @@ def add_micrograph_to_starfile_nodes(node_mod, node_group, mat, image, pixel_siz
     input_node = node_group.nodes[bpy.app.translations.pgettext_data("Group Input",)]
     join_node = node_group.nodes[bpy.app.translations.pgettext_data("Join Geometry",)]
 
-    link(micrograph_plane_node.outputs[0], join_node.inputs[0])
-    link(input_node.outputs[4], micrograph_plane_node.inputs[3])
-    link(input_node.outputs[5], micrograph_plane_node.inputs[4])
-    node_mod['Input_5'] = float(pixel_size)
+    link(micrograph_plane_node.outputs[0], node_switch_micrograph.inputs[15])
+    link(node_switch_micrograph.outputs[6], join_node.inputs[0])
+    link(input_node.outputs[5], node_switch_micrograph.inputs[1])
+    link(input_node.outputs[6], micrograph_plane_node.inputs[3])
+    link(input_node.outputs[7], micrograph_plane_node.inputs[4])
+    node_mod['Input_6'] = True
+    node_mod['Input_7'] = float(pixel_size)
 
 
 def create_starting_nodes_density(obj, threshold = 0.8):

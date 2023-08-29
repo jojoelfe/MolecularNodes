@@ -34,8 +34,7 @@ def load_star_file(
     ):
     import starfile
     from eulerangles import ConversionMeta, convert_eulers
-    
-    star = starfile.read(file_path, always_dict=True)
+    star = starfile.read(bpy.path.abspath(file_path), always_dict=True)
     
     star_type = None
     # only RELION 3.1 and cisTEM STAR files are currently supported, fail gracefully
@@ -89,6 +88,7 @@ def load_star_file(
                                source_meta='relion', 
                                target_meta=target_metadata))
 
+    obj_name = bpy.path.display_name(file_path)
     obj = create_object(obj_name, coll.mn(), xyz * world_scale)
     
     # vectors have to be added as a 1D array currently
@@ -129,32 +129,39 @@ def load_star_file(
             if len(micrograph_paths) > 1:
                 print("Multiple micrographs found, only loading first one")
             micrograph = micrograph_paths[0]
+            print("Loading micrograph: ", micrograph)
             with mrcfile.open(micrograph) as mrc:
                 micrograph_data = mrc.data.copy()
                 pixel_size = mrc.voxel_size.x
-                print("Micrograph pixel size: ", pixel_size)
             # For 3D data sum over the z axis. Probalby would be nicer to load the data as a volume
             if micrograph_data.ndim == 3:
                 micrograph_data = np.sum(micrograph_data, axis=0)
+            print("Micrograph shape: ", micrograph_data.shape)
             # Normalize values to 0-1 range, might need to be adjusted
-            micrograph_data -= np.median(micrograph_data)
-            micrograph_data /= np.std(micrograph_data)
-            micrograph_data /= 3.0
-            micrograph_data = np.clip(micrograph_data, -1.0, 1.0)
-            micrograph_data /= 2.0
-            micrograph_data += 0.5
+            #micrograph_data -= np.median(micrograph_data)
+            #micrograph_data /= np.std(micrograph_data)
+            #micrograph_data /= 3.0
+            #micrograph_data = np.clip(micrograph_data, -1.0, 1.0)
+            #micrograph_data /= 2.0
+            #micrograph_data += 0.5
+            #if micrograph_data.shape[0] > 9000 or micrograph_data.shape[1] > 9000:
+            #    micrograph_data = micrograph_data[::2,::2]
+            # Write micrograph data to tiff file
+            from PIL import Image
+            im = Image.fromarray(micrograph_data[::-1,:])
+            im.save(micrograph + ".tiff")
             # Create a new image datablock
-            image = bpy.data.images.new(micrograph, width=micrograph_data.shape[1], height=micrograph_data.shape[0],is_data=True,float_buffer=True)
+            #image = bpy.data.images.new(micrograph, width=micrograph_data.shape[1], height=micrograph_data.shape[0],is_data=True,float_buffer=True)
             # Copy the data into the image datablock
-            image.pixels = np.repeat(micrograph_data.flatten(), 4)
+            #image.pixels = np.repeat(micrograph_data.flatten(), 4)
             # Create a new material, copying it over
 
             mat = nodes.mol_micrograph_material()
             mat.name = micrograph
-            mat.node_tree.nodes['Image Texture'].image = image
+            mat.node_tree.nodes['Image Texture'].image = bpy.data.images.load(micrograph + ".tiff")
 
             # Setup the size of the micrograph plane
-            nodes.add_micrograph_to_starfile_nodes(node_mod, node_group, mat, image, pixel_size, world_scale)
+            nodes.add_micrograph_to_starfile_nodes(node_mod, node_group, mat, mat.node_tree.nodes['Image Texture'].image, pixel_size, world_scale)
     return obj
 
 

@@ -132,7 +132,11 @@ def molecule_local(
     
     if file_ext == '.pdb':
         mol, file = open_structure_local_pdb(file_path, include_bonds)
-        transforms = list(assembly.get_transformations_pdb(file))
+        try:
+            transforms = list(assembly.get_transformations_pdb(file))
+        except:
+            transforms = None
+            # self.report({"WARNING"}, message='Unable to parse biological assembly information.')
     elif file_ext == '.pdbx' or file_ext == '.cif':
         mol, file = open_structure_local_pdbx(file_path, include_bonds)
         try:
@@ -211,7 +215,7 @@ def open_structure_local_pdbx(file_path, include_bonds = True):
     
     # Try to get the structure, if no structure exists try to get a small molecule
     try:
-        mol  = pdbx.get_structure(file, extra_fields = ['b_factor', 'charge'])
+        mol  = pdbx.get_structure(file, extra_fields = ['b_factor'])
     except InvalidFileError:
         mol = pdbx.get_component(file)
 
