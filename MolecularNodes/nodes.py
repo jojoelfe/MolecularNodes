@@ -63,11 +63,12 @@ def mol_micrograph_material():
 
 
 
-def gn_new_group_empty(name = "Geometry Nodes"):
+def gn_new_group_empty(name = "Geometry Nodes",ensure_unique_name = False):
     group = bpy.data.node_groups.get(name)
     # if the group already exists, return it and don't create a new one
     if group:
-        return group
+        if not ensure_unique_name:
+            return group
     
     # create a new group for this particular name and do some initial setup
     group = bpy.data.node_groups.new(name, 'GeometryNodeTree')
@@ -125,7 +126,7 @@ def create_starting_nodes_starfile(obj):
     
    
     # create a new GN node group, specific to this particular molecule
-    node_group = gn_new_group_empty(node_name)
+    node_group = gn_new_group_empty(node_name,ensure_unique_name=True)
     node_mod.node_group = node_group
     node_group.inputs.new("NodeSocketObject", "Molecule")
     node_group.inputs.new("NodeSocketInt", "Image")

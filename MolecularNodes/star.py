@@ -54,6 +54,9 @@ def _update_micrograph_texture(obj, mat, star_type):
         image_obj = bpy.data.images[im_name]
     mat.node_tree.nodes['Image Texture'].image = image_obj
     obj.modifiers['MolecularNodes'].node_group.nodes['Group.001'].inputs['Image'].default_value = image_obj
+    bpy.context.view_layer.objects.active = obj
+    #bpy.context.space_data.context = 'MODIFIER'
+
 
 
 
