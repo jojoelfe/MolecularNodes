@@ -159,7 +159,7 @@ def create_starting_nodes_starfile(obj):
     node_mod['Input_5'] = True
     return (node_mod, node_group)
 
-def add_micrograph_to_starfile_nodes(node_mod, node_group, mat, image, pixel_size, world_scale = 0.01):
+def add_micrograph_to_starfile_nodes(node_mod, node_group, mat, pixel_size, world_scale = 0.01):
     micrograph_plane_node = add_custom_node_group_to_node(node_group, 'MOL_micrograph_plane')
     #micrograph_plane_node[]
     node_switch_micrograph = node_group.nodes.new("GeometryNodeSwitch")
@@ -168,7 +168,7 @@ def add_micrograph_to_starfile_nodes(node_mod, node_group, mat, image, pixel_siz
     node_group.inputs.new('NodeSocketFloat', "Pixel Size")
     node_group.inputs.new('NodeSocketFloat', "Z")
     micrograph_plane_node.inputs[0].default_value = world_scale
-    micrograph_plane_node.inputs[1].default_value = image
+    
     micrograph_plane_node.inputs[2].default_value = mat
     link = node_group.links.new
     input_node = node_group.nodes[bpy.app.translations.pgettext_data("Group Input",)]
@@ -181,6 +181,7 @@ def add_micrograph_to_starfile_nodes(node_mod, node_group, mat, image, pixel_siz
     link(input_node.outputs[7], micrograph_plane_node.inputs[4])
     node_mod['Input_6'] = True
     node_mod['Input_7'] = float(pixel_size)
+    node_mod['Input_8'] = -20.0
 
 
 def create_starting_nodes_density(obj, threshold = 0.8):

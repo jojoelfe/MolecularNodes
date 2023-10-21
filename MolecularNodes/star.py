@@ -23,6 +23,38 @@ bpy.types.Scene.mol_import_star_file_name = bpy.props.StringProperty(
     )
 
 
+def _update_micrograph_texture(obj, mat, star_type):
+    import mrcfile
+    from pathlib import Path
+    micrograph_path = obj['cisTEMOriginalImageFilename_categories'][obj.modifiers['MolecularNodes']["Input_3"] - 1]
+    if star_type == 'relion':
+        micrograph_path = obj['rlnMicrographName_categories'][obj.modifiers['MolecularNodes']["Input_3"] - 1]
+    elif star_type == 'cistem':
+        micrograph_path = obj['cisTEMOriginalImageFilename_categories'][obj.modifiers['MolecularNodes']["Input_3"] - 1]
+    else:
+        return
+    
+    tiff_path = micrograph_path + ".tiff"
+    if not Path(tiff_path).exists():
+        print("Converting micrograph: ", micrograph_path)
+        with mrcfile.open(micrograph_path) as mrc:
+            micrograph_data = mrc.data.copy()
+
+        # For 3D data sum over the z axis. Probalby would be nicer to load the data as a volume
+        if micrograph_data.ndim == 3:
+            micrograph_data = np.sum(micrograph_data, axis=0)
+        
+        from PIL import Image
+        im = Image.fromarray(micrograph_data[::-1,:])
+        im.save(tiff_path)
+    im_name = tiff_path.split("/")[-1]
+    if im_name not in bpy.data.images:
+        image_obj = bpy.data.images.load(tiff_path)
+    else:
+        image_obj = bpy.data.images[im_name]
+    mat.node_tree.nodes['Image Texture'].image = image_obj
+    obj.modifiers['MolecularNodes'].node_group.nodes['Group.001'].inputs['Image'].default_value = image_obj
+
 
 
 def load_star_file(
@@ -71,6 +103,7 @@ def load_star_file(
         df = star[0]
         df['cisTEMZFromDefocus'] = (df['cisTEMDefocus1'] + df['cisTEMDefocus2']) / 2
         df['cisTEMZFromDefocus'] = df['cisTEMZFromDefocus'] - df['cisTEMZFromDefocus'].median()
+        pixel_size = df['cisTEMPixelSize'].to_numpy().reshape((-1, 1))
         xyz = df[['cisTEMOriginalXPosition', 'cisTEMOriginalYPosition', 'cisTEMZFromDefocus']].to_numpy()
         euler_angles = df[['cisTEMAnglePhi', 'cisTEMAngleTheta', 'cisTEMAnglePsi']].to_numpy()
         image_id = df['cisTEMOriginalImageFilename'].astype('category').cat.codes.to_numpy()
@@ -117,51 +150,16 @@ def load_star_file(
     
     if node_tree:
         node_mod, node_group = nodes.create_starting_nodes_starfile(obj)
-    
+
         if load_micrograph:
-            import mrcfile
-            if star_type == 'relion':
-                micrograph_paths = df['rlnMicrographName'].unique()
-            elif star_type == 'cistem':
-                micrograph_paths = df['cisTEMOriginalImageFilename'].unique()
-            else:
-                return
-            if len(micrograph_paths) > 1:
-                print("Multiple micrographs found, only loading first one")
-            micrograph = micrograph_paths[0]
-            print("Loading micrograph: ", micrograph)
-            with mrcfile.open(micrograph) as mrc:
-                micrograph_data = mrc.data.copy()
-                pixel_size = mrc.voxel_size.x
-            # For 3D data sum over the z axis. Probalby would be nicer to load the data as a volume
-            if micrograph_data.ndim == 3:
-                micrograph_data = np.sum(micrograph_data, axis=0)
-            print("Micrograph shape: ", micrograph_data.shape)
-            # Normalize values to 0-1 range, might need to be adjusted
-            #micrograph_data -= np.median(micrograph_data)
-            #micrograph_data /= np.std(micrograph_data)
-            #micrograph_data /= 3.0
-            #micrograph_data = np.clip(micrograph_data, -1.0, 1.0)
-            #micrograph_data /= 2.0
-            #micrograph_data += 0.5
-            #if micrograph_data.shape[0] > 9000 or micrograph_data.shape[1] > 9000:
-            #    micrograph_data = micrograph_data[::2,::2]
-            # Write micrograph data to tiff file
-            from PIL import Image
-            im = Image.fromarray(micrograph_data[::-1,:])
-            im.save(micrograph + ".tiff")
-            # Create a new image datablock
-            #image = bpy.data.images.new(micrograph, width=micrograph_data.shape[1], height=micrograph_data.shape[0],is_data=True,float_buffer=True)
-            # Copy the data into the image datablock
-            #image.pixels = np.repeat(micrograph_data.flatten(), 4)
-            # Create a new material, copying it over
+            
 
             mat = nodes.mol_micrograph_material()
-            mat.name = micrograph
-            mat.node_tree.nodes['Image Texture'].image = bpy.data.images.load(micrograph + ".tiff")
-
+            mat.name = obj_name + "_micrograph_material"
+            
             # Setup the size of the micrograph plane
-            nodes.add_micrograph_to_starfile_nodes(node_mod, node_group, mat, mat.node_tree.nodes['Image Texture'].image, pixel_size, world_scale)
+            nodes.add_micrograph_to_starfile_nodes(node_mod, node_group, mat, pixel_size[0], world_scale)
+            bpy.app.handlers.depsgraph_update_post.append(lambda x,y: _update_micrograph_texture(obj, mat, star_type))
     return obj
 
 
