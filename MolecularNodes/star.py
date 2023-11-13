@@ -26,11 +26,10 @@ bpy.types.Scene.mol_import_star_file_name = bpy.props.StringProperty(
 def _update_micrograph_texture(obj, mat, star_type):
     import mrcfile
     from pathlib import Path
-    micrograph_path = obj['cisTEMOriginalImageFilename_categories'][obj.modifiers['MolecularNodes']["Input_3"] - 1]
     if star_type == 'relion':
         micrograph_path = obj['rlnMicrographName_categories'][obj.modifiers['MolecularNodes']["Input_3"] - 1]
     elif star_type == 'cistem':
-        micrograph_path = obj['cisTEMOriginalImageFilename_categories'][obj.modifiers['MolecularNodes']["Input_3"] - 1]
+        micrograph_path = obj['cisTEMOriginalImageFilename_categories'][obj.modifiers['MolecularNodes']["Input_3"] - 1].strip("'")
     else:
         return
     
