@@ -54,7 +54,7 @@ def _update_micrograph_texture(obj, mat, star_type):
     else:
         image_obj = bpy.data.images[im_name]
     mat.node_tree.nodes['Image Texture'].image = image_obj
-    obj.modifiers['MolecularNodes'].node_group.nodes['Group.001'].inputs['Image'].default_value = image_obj
+    obj.modifiers['MolecularNodes'].node_group.nodes['MOL_micrograph_plane'].inputs['Image'].default_value = image_obj
     bpy.context.view_layer.objects.active = obj
     #bpy.context.space_data.context = 'MODIFIER'
 
@@ -75,6 +75,8 @@ def load_star_file(
     
     if list(star.keys()) == [""]:
         star = star[""]
+    if list(star.keys()) == [0]:
+        star = star[0]
     
     star_type = None
     # only RELION 3.1 and cisTEM STAR files are currently supported, fail gracefully
@@ -84,7 +86,7 @@ def load_star_file(
         star_type = 'cistem'
     else:
         raise ValueError(
-        'File is not a valid RELION>=3.1 or cisTEM STAR file, other formats are not currently supported.'
+        'Files is not a valid RELION>=3.1 or cisTEM STAR file, other formats are not currently supported.'
         )
     
     # Get absolute position and orientations    
@@ -161,11 +163,12 @@ def load_star_file(
         if load_micrograph:
             
 
-            mat = nodes.mol_micrograph_material()
+            mat = nodes.MN_micrograph_material()
             mat.name = obj_name + "_micrograph_material"
             
             # Setup the size of the micrograph plane
             nodes.add_micrograph_to_starfile_nodes(node_mod, node_group, mat, pixel_size[0], world_scale)
+            _update_micrograph_texture(obj, mat, star_type)
             bpy.app.handlers.depsgraph_update_post.append(lambda x,y: _update_micrograph_texture(obj, mat, star_type))
     return obj
 

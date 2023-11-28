@@ -92,6 +92,22 @@ def MN_base_material():
     
     return bpy.data.materials[mat_name]
 
+def MN_micrograph_material():
+    """Append MOL_micrograph_material to the .blend file and return that material."""
+
+    mat_name = 'MOL_micrograph_material'
+    mat = bpy.data.materials.get(mat_name)
+
+    bpy.ops.wm.append(
+        directory=os.path.join(
+            pkg.ADDON_DIR, 'assets', mn_data_file,'Material'
+        ), 
+        filename=mat_name, 
+        link=False,
+    )
+
+    return bpy.data.materials[mat_name]
+
 def gn_new_group_empty(name = "Geometry Nodes",ensure_unique_name = False, fallback=True):
     group = bpy.data.node_groups.get(name)
     # if the group already exists, return it and don't create a new one
