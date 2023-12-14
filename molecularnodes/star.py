@@ -71,6 +71,7 @@ def load_star_file(
     import starfile
     from pandas import DataFrame
     from eulerangles import ConversionMeta, convert_eulers
+    from scipy.spatial.transform import Rotation as R
     star = starfile.read(bpy.path.abspath(file_path), always_dict=True)
     
     if list(star.keys()) == [""]:
@@ -124,21 +125,27 @@ def load_star_file(
         return
 
     # coerce starfile Euler angles to Blender convention
-    
-    target_metadata = ConversionMeta(name='output', 
-                                    axes='xyz', 
-                                    intrinsic=False,
-                                    right_handed_rotation=True,
-                                    active=True)
-    eulers = np.deg2rad(convert_eulers(euler_angles, 
-                               source_meta='relion', 
-                               target_meta=target_metadata))
-
+    #
+    #target_metadata = ConversionMeta(name='output', 
+    #                                axes='xyz', 
+    #                                intrinsic=False,
+    #                                right_handed_rotation=True,
+    #                                active=True)
+    #eulers = np.deg2rad(convert_eulers(euler_angles, 
+    #                           source_meta='relion', 
+    #                           target_meta=target_metadata))
+    eulers = R.from_euler(
+        seq='ZYZ', angles=euler_angles, degrees=True
+    ).inv().as_euler('xyz')
     obj_name = bpy.path.display_name(file_path)
     obj = create_object(obj_name, coll.mn(), xyz * world_scale)
 
     # create the attribute and add the data for the rotations
     add_attribute(obj, 'MOLRotation', eulers, 'FLOAT_VECTOR', 'POINT')
+
+    if 'faVectorX' in df.columns:
+        fa = df[['faVectorX', 'faVectorY', 'faVectorZ']].to_numpy()
+        add_attribute(obj, 'MOLFiberAxis', fa, 'FLOAT_VECTOR', 'POINT')
 
     # create the attribute and add the data for the image id
     add_attribute(obj, 'MOLIMageId', image_id, 'INT', 'POINT')
