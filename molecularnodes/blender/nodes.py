@@ -3,6 +3,7 @@ import os
 import numpy as np
 import math
 import warnings
+from .. import assembly
 from .. import color
 from .. import pkg
 from ..blender import obj
@@ -411,9 +412,11 @@ def create_starting_node_tree(object, coll_frames=None, style="spheres", name=No
         node_style.location = [800, 0]
         
         node_animate_frames = add_custom(group, 'MN_animate_frames', [500, 0])
-        node_animate_frames.inputs['Frames'].default_value = coll_frames
-        
         node_animate = add_custom(group, 'MN_animate_value', [500, -300])
+        
+        node_animate_frames.inputs['Frames'].default_value = coll_frames
+        node_animate.inputs['To Max'].default_value = len(coll_frames.objects) - 1
+        
         link(to_animate.outputs[0], node_animate_frames.inputs[0])
         link(node_animate_frames.outputs[0], node_style.inputs[0])
         link(node_animate.outputs[0], node_animate_frames.inputs['Frame'])
@@ -466,6 +469,32 @@ def split_geometry_to_instances(name, iter_list=('A', 'B', 'C'), attribute='chai
     link(node_instance.outputs[0], node_output.inputs[0])
     return group
 
+def assembly_initialise(mol: bpy.types.Object):
+    """
+    Setup the required data object and nodes for building an assembly.
+    """
+    
+    transforms = assembly.mesh.array_quaternions_from_dict(mol['biological_assemblies'])
+    data_object = assembly.mesh.create_data_object(
+        transforms_array=transforms, 
+        name = f"data_assembly_{mol.name}"
+    )
+    tree_assembly = create_assembly_node_tree(
+        name = mol.name, 
+        iter_list = mol['chain_id_unique'], 
+        data_object = data_object
+    )
+    return tree_assembly
+
+def assembly_insert(mol: bpy.types.Object):
+    """
+    Given a molecule, setup the required assembly node and insert it into the node tree.
+    """
+    
+    tree_assembly = assembly_initialise(mol)
+    group = get_mod(mol).node_group
+    node = add_custom(group, tree_assembly.name)
+    insert_last_node(get_mod(mol).node_group, node)
 
 def create_assembly_node_tree(name, iter_list, data_object):
     
