@@ -19,12 +19,19 @@ bpy.types.Scene.MN_import_star_file_name = bpy.props.StringProperty(
     default = 'NewStarInstances', 
     maxlen = 0
     )
+bpy.types.Scene.MN_import_micrograph = bpy.props.BoolProperty(
+    name = 'Import Micrograph', 
+    description = 'Load micrographs as images and add them to the scene.',
+    default = False
+    )
+
 
 def load(
     file_path, 
     name = 'NewStarInstances', 
     node_tree = True,
-    world_scale =  0.01 
+    world_scale =  0.01,
+    import_micrograph = False
     ):
     import starfile
     
@@ -118,7 +125,8 @@ class MN_OT_Import_Star_File(bpy.types.Operator):
         load(
             file_path = scene.MN_import_star_file_path, 
             name = scene.MN_import_star_file_name, 
-            node_tree = True
+            node_tree = True,
+            import_micrograph = scene.MN_import_micrograph
         )
         return {"FINISHED"}
 
@@ -130,3 +138,8 @@ def panel(layout, scene):
     row_import.prop(scene, 'MN_import_star_file_name')
     layout.prop(scene, 'MN_import_star_file_path')
     row_import.operator('mn.import_star_file')
+    layout.separator()
+    layout.label(text = "Options", icon = "MODIFIER")
+    options = layout.column(align = True)
+    grid = options.grid_flow()  
+    grid.prop(scene, 'MN_import_micrograph')
