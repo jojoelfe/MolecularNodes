@@ -41,7 +41,7 @@ chosen_panel = {
 
 packages = {
     'pdb': ['biotite'], 
-    'star': ['starfile'], 
+    'star': ['starfile','mrcfile'], 
     'local': ['biotite'], 
     'cellpack': ['biotite', 'msgpack'], 
     'md': ['MDAnalysis'], 
