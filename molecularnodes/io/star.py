@@ -25,13 +25,47 @@ bpy.types.Scene.MN_import_micrograph = bpy.props.BoolProperty(
     default = False
     )
 
+def _update_micrograph_texture(obj, mat, star_type):
+    import mrcfile
+    from pathlib import Path
+    if star_type == 'relion':
+        micrograph_path = obj['rlnMicrographName_categories'][obj.modifiers['MolecularNodes']["Input_3"] - 1]
+    elif star_type == 'cistem':
+        micrograph_path = obj['cisTEMOriginalImageFilename_categories'][obj.modifiers['MolecularNodes']["Input_3"] - 1].strip("'")
+    else:
+        return
+
+    tiff_path = micrograph_path + ".tiff"
+    if not Path(tiff_path).exists():
+        print("Converting micrograph: ", micrograph_path)
+        with mrcfile.open(micrograph_path) as mrc:
+            micrograph_data = mrc.data.copy()
+
+        # For 3D data sum over the z axis. Probalby would be nicer to load the data as a volume
+        if micrograph_data.ndim == 3:
+            micrograph_data = np.sum(micrograph_data, axis=0)
+
+        from PIL import Image
+        im = Image.fromarray(micrograph_data[::-1,:])
+        im.save(tiff_path)
+    im_name = tiff_path.split("/")[-1]
+    if im_name not in bpy.data.images:
+        image_obj = bpy.data.images.load(tiff_path)
+    else:
+        image_obj = bpy.data.images[im_name]
+    mat.node_tree.nodes['Image Texture'].image = image_obj
+    obj.modifiers['MolecularNodes'].node_group.nodes['MOL_micrograph_plane'].inputs['Image'].default_value = image_obj
+    bpy.context.view_layer.objects.active = obj
+    #bpy.context.space_data.context = 'MODIFIER'
+
+
 
 def load(
     file_path, 
     name = 'NewStarInstances', 
     node_tree = True,
     world_scale =  0.01,
-    import_micrograph = False
+    import_micrograph = False,
     ):
     import starfile
     
@@ -106,6 +140,15 @@ def load(
     
     if node_tree:
         nodes.create_starting_nodes_starfile(ensemble)
+        
+        if import_micrograph:
+            mat = nodes.MN_micrograph_material()
+            mat.name = name + "_micrograph_material"
+
+            # Setup the size of the micrograph plane
+            nodes.add_micrograph_to_starfile_nodes(ensemble, mat)
+            _update_micrograph_texture(obj, mat, star_type)
+            bpy.app.handlers.depsgraph_update_post.append(lambda x,y: _update_micrograph_texture(obj, mat, star_type))
     
     return ensemble
 

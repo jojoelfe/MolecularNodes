@@ -206,6 +206,20 @@ def MN_base_material():
     
     return bpy.data.materials[mat_name]
 
+def MN_micrograph_material():
+    """Append MN_micrograph_material to the .blend file and return that material."""
+
+    mat_name = 'MN_micrograph_material'
+    mat = bpy.data.materials.get(mat_name)
+    if not mat:
+        bpy.ops.wm.append(
+                directory = os.path.join(MN_DATA_FILE, 'Material'), 
+                filename = mat_name, 
+                link = False
+            )
+
+    return bpy.data.materials[mat_name]
+
 def new_group(name = "Geometry Nodes", geometry = True, fallback=True):
     group = bpy.data.node_groups.get(name)
     # if the group already exists, return it and don't create a new one
@@ -326,6 +340,27 @@ def create_starting_nodes_starfile(object):
     
     # Need to manually set Image input to 1, otherwise it will be 0 (even though default is 1)
     node_mod['Input_3'] = 1
+
+def add_micrograph_to_starfile_nodes(object, mat):
+    node_mod = get_mod(object)
+    node_group = node_mod.node_group
+    
+    micrograph_plane_node = add_custom(node_group, 'MN_micrograph_plane')
+    
+    node_switch_micrograph = node_group.nodes.new("GeometryNodeSwitch")
+    node_switch_micrograph.location = [300, -200]
+
+    micrograph_plane_node.inputs[2].default_value = mat
+    link = node_group.links.new
+    input_node = get_input(node_group)
+    join_node = node_group.nodes[bpy.app.translations.pgettext_data("Join Geometry",)]
+
+    link(micrograph_plane_node.outputs[0], node_switch_micrograph.inputs[15])
+    link(node_switch_micrograph.outputs[6], join_node.inputs[0])
+    link(input_node.outputs[5], node_switch_micrograph.inputs[1])
+    link(input_node.outputs[6], micrograph_plane_node.inputs[3])
+    link(input_node.outputs[7], micrograph_plane_node.inputs[4])
+
 
 def create_starting_nodes_density(object, threshold = 0.8, style = 'surface'):
     # ensure there is a geometry nodes modifier called 'MolecularNodes' that is created and applied to the object
