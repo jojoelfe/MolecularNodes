@@ -269,7 +269,7 @@ class MN_OT_Import_Map(bpy.types.Operator):
         load(
             file = scene.MN_import_density, 
             invert = scene.MN_import_density_invert, 
-            setup_nodes=scene.MN_import_density_nodes, 
+            #setup_nodes=scene.MN_import_density_nodes, 
             style = scene.MN_import_density_style,
             center=scene.MN_import_density_center
             )

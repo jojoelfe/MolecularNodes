@@ -13,7 +13,14 @@ class PDBAssemblyParser(AssemblyParser):
     def list_assemblies(self):
         return self._file.list_assemblies()
     
-
+    def get_crystal_scale(self):
+        from biotite.structure.io.pdb import PDBFile
+        matrix = np.zeros((3,3))
+        for line in self._file.lines:
+            if line.startswith("SCALE"):
+                matrix[int(line[5:6])-1,:] = [float(line[10:20]), float(line[21:30]), float(line[31:40])]
+        return np.dot(np.linalg.inv(matrix),[0,1,0])
+    
     def get_transformations(self, assembly_id):
         import biotite
         # Get lines containing transformations for assemblies

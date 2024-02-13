@@ -41,8 +41,11 @@ def load(
     transforms = None
     if file_ext == '.pdb':
         mol, file = open_structure_local_pdb(file_path)
+
         try:
-            transforms = assembly.pdb.PDBAssemblyParser(file).get_assemblies()
+            parser = assembly.pdb.PDBAssemblyParser(file)
+            transforms = parser.get_assemblies()
+            print(parser.get_crystal_scale())
         except InvalidFileError:
             pass
 
