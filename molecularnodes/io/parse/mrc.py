@@ -97,7 +97,6 @@ class MRC(Density):
             The path to the converted .vdb file.
         """
         import pyopenvdb as vdb
-
         file_path = self.path_to_vdb(file)
 
         # If the map has already been converted to a .vdb and overwrite is False, return that instead
@@ -150,17 +149,17 @@ class MRC(Density):
         volume = mrcfile.read(file)
 
         dataType = volume.dtype
-
+        print(dataType)
         # enables different grid types
 
         if dataType == "float32" or dataType == "float64":
+            volume = volume.astype('float32')
             grid = vdb.FloatGrid()
         elif dataType == "int8" or dataType == "int16" or dataType == "int32":
             volume = volume.astype('int32')
             grid = vdb.Int32Grid()
         elif dataType == "int64":
             grid = vdb.Int64Grid()
-
         if invert:
             volume = np.max(volume) - volume
 
@@ -170,6 +169,7 @@ class MRC(Density):
         # since openvdb seems to read is straight from memory without checking the striding
         # The np.transpose is needed to convert the data from zyx to xyz
         volume = np.copy(np.transpose(volume, (2, 1, 0)), order='C')
+
         try:
             grid.copyFromArray(volume)
         except ValueError:
