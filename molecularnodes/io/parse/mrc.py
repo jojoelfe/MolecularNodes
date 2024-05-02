@@ -178,7 +178,8 @@ class MRC(Density):
             grid = vdb.FloatGrid()
 
         if invert:
-            volume = np.max(volume) - volume
+            volume -= np.mean(volume)
+            volume /= -np.std(volume)
 
         initial_threshold = np.quantile(volume, 0.995)
 
