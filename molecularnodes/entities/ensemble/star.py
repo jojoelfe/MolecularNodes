@@ -67,9 +67,7 @@ class StarFile(Ensemble):
         elif "cisTEMAnglePsi" in self.data:
             self.star_type = "cistem"
         else:
-            raise ValueError(
-                "File is not a valid RELION>=3.1 or cisTEM STAR file, other formats are not currently supported."
-            )
+            self.star_type = "general"
 
         # Get absolute position and orientations
         if self.star_type == "relion":
@@ -134,6 +132,11 @@ class StarFile(Ensemble):
                 .astype("category")
                 .cat.codes.to_numpy()
             )
+        elif self.star_type == "general":
+            df = self.data
+            self.positions = np.zeros((len(df), 3))
+           
+            
 
     def _convert_mrc_to_tiff(self):
         if self.star_type == "relion":
@@ -244,7 +247,7 @@ class StarFile(Ensemble):
                 )
         blender_object.mn.uuid = self.uuid
 
-        if node_setup:
+        if node_setup and self.star_type != "general":
             bl.nodes.create_starting_nodes_starfile(
                 blender_object, n_images=self.n_images
             )
